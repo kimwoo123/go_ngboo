@@ -1,97 +1,67 @@
 package main
 
 import (
-	"bytes"
 	"crypto/tls"
 	"fmt"
-	"io"
+
 	// "net"
 	"time"
 
 	// "log"
 	"net/http"
-	"net/url"
-	// "github.com/gocolly/colly"
+
+	"github.com/gocolly/colly"
 )
 
-func tls_request() *http.Client {
-	c := &http.Client{
-		Transport: &http.Transport{
-			TLSHandshakeTimeout: 30 * time.Second,
-			DisableKeepAlives:   false,
+func tls_transport() *http.Transport {
+	result := &http.Transport{
+		TLSHandshakeTimeout: 30 * time.Second,
+		DisableKeepAlives:   false,
 
-			TLSClientConfig: &tls.Config{
-				CipherSuites: []uint16{
-					tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-					tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-					tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-					tls.TLS_AES_128_GCM_SHA256,
-					tls.VersionTLS13,
-					tls.VersionTLS10,
-				},
+		TLSClientConfig: &tls.Config{
+			CipherSuites: []uint16{
+				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+				tls.TLS_AES_128_GCM_SHA256,
+				tls.VersionTLS13,
+				tls.VersionTLS10,
 			},
 		},
 	}
-
-	return c
+	return result
 }
 
 func main() {
-	// Create a new Colly collector
-	// c := colly.NewCollector()
-
-	// rawURL := "https://www.fragrantica.com/perfume/Aramis/Havana-599.html"
 	rawURL := "https://www.fragrantica.com/perfume/Tom-Ford/Tobacco-Vanille-1825.html"
-	reqURL, _ := url.Parse(rawURL)
 
-	req := &http.Request{
-		Method: "GET",
-		URL:    reqURL,
-		Header: map[string][]string{
-			"Accept":          {"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"},
-			"User-Agent":      {"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.4 Safari/605.1.15"},
-			"Accept-Charset":  {"ISO-8859-1,utf-8;q=0.7,*;q=0.3"},
-			"Accept-Encoding": {"none"},
-			"Accept-Language": {"en-US,en;q=0.8"},
-			"Connection":      {"keep-alive"},
-		},
-	}
-	var buf bytes.Buffer
-	t := io.Writer(&buf)
-	req.Write(t)
-	fmt.Println(t)
+	c := colly.NewCollector()
+	c.WithTransport(tls_transport())
 
-	client := tls_request()
+	c.OnRequest(func(r *colly.Request) {
+		r.Headers.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+		r.Headers.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_2) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.4 Safari/605.1.15")
+		r.Headers.Set("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.3")
+		r.Headers.Set("Accept-Encoding", "none")
+		r.Headers.Set("Accept-Language", "en-US,en;q=0.8")
+		r.Headers.Set("Connection", "keep-alive")
+	})
 
-	res, _ := client.Do(req)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	defer res.Body.Close()
-
-	// body, _ := io.ReadAll(res.Body)
-	fmt.Println(res.Status)
-	// Define the URL you want to scrape
-
-	// c.OnRequest(func(r *colly.Request) {
-	// 	r.Headers.Set("Accept", `text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8`)
-	// 	r.Headers.Set("User-Agent", "Mozilla/5.0")
-	// })
-
-	// c.OnError(func(r *colly.Response, err error) {
-	// 	fmt.Println("Request URL: ", r.Request.URL, " failed with response: ", string(r.Body), "\nError: ", err)
-	// })
+	c.OnError(func(r *colly.Response, err error) {
+		fmt.Println("Request URL: ", r.Request.URL, "\nError: ", err)
+	})
 
 	// // Set up callbacks to handle scraping events
-	// c.OnHTML("h1[itemprop='name'].text-center.medium-text-left", func(e *colly.HTMLElement) {
-	// 	// Print the scraped data
-	// 	fmt.Printf("Text: %s\n", e.Text)
-	// })
+	c.OnHTML("h1[itemprop='name'].text-center.medium-text-left", func(e *colly.HTMLElement) {
+		// Print the scraped data
+		fmt.Printf("Text: %s\n", e.Text)
+	})
+
 	// Visit the URL and start scraping
-	// err := c.Visit(rawURL)
-	// if err != nil {
-	// log.Fatal(err)
-	// }
+	err := c.Visit(rawURL)
+	if err != nil {
+		fmt.Print(err)
+	}
 }
 
 // 이름
